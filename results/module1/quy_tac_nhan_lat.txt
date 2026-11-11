@@ -1,0 +1,8 @@
+Module 1 - Phần 5: Chuẩn bị nhãn lát
+Nguồn WT volume: /Users/kabe/Documents/MRI/results/module1/Kết quả chuẩn hóa RAS/nifti
+Báo cáo hướng: /Users/kabe/Documents/MRI/results/module1/Kết quả chuẩn hóa RAS/orientation_report.csv
+Trục axial voxel: 2
+Quy tắc: label = 1 nếu lát có ít nhất một voxel WT; label = 0 nếu không có.
+Thứ tự: Module 2 khóa patient ID vào các tập trước; sau đó mới tạo lát 2D và gán nhãn.
+Số volume WT đã kiểm tra: 368
+Không tạo bảng lát 2D hoặc chia tập dữ liệu.

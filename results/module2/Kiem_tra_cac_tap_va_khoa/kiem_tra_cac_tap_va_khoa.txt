@@ -1,0 +1,9 @@
+KIỂM TRA VÀ KHÓA CÁC TẬP DỮ LIỆU
+
+Sau khi chia, cần kiểm tra để bảo đảm mỗi bệnh nhân chỉ thuộc một tập, không có mã bệnh nhân trùng giữa R, S, C và test, và mọi bệnh nhân hợp lệ đều có trong danh sách. Danh sách chia theo từng bệnh nhân được lưu tại `results/module2/Quy_tắc_chia/phan_chia_benh_nhan.csv`.
+
+Lần chia này dùng seed 42 và được tạo ngày 2026-11-11. Có 368 bệnh nhân hợp lệ: 74 bệnh nhân thuộc tập test; 294 bệnh nhân còn lại thuộc tập phát triển, gồm 206 bệnh nhân ở R (huấn luyện), 44 ở S (lựa chọn) và 44 ở C (xác nhận). Một bệnh nhân bị loại.
+
+Sau khi chia, danh sách test được giữ cố định. Không dùng test để lựa chọn tiền xử lý, ngưỡng hoặc mô hình; test chỉ dành cho đánh giá cuối cùng. Không điều chỉnh danh sách dựa trên số lát dương/âm, vị trí khối u hoặc kết quả mô hình.
+
+Các kết quả kiểm tra và quy tắc chia được lưu trong `results/module2/Quy_tắc_chia/`.

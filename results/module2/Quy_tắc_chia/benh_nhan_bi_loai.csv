@@ -1,0 +1,2 @@
+patient_id,reason
+BraTS20_Training_355,missing_segmentation; Thiếu đường dẫn segmentation trong manifest.; missing_segmentation

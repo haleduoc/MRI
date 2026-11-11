@@ -1,0 +1,16 @@
+QUY TẮC CHIA DỮ LIỆU THEO BỆNH NHÂN
+
+Danh sách 368 bệnh nhân hợp lệ được xáo trộn bằng seed 42 rồi chia theo bệnh nhân, trước khi tạo lát ảnh 2D. Mỗi bệnh nhân và toàn bộ lát ảnh của họ chỉ thuộc một tập.
+
+Tập test chiếm 20% tổng số bệnh nhân hợp lệ, tương đương 74 bệnh nhân. 294 bệnh nhân còn lại tạo thành tập phát triển, được chia như sau:
+- R — huấn luyện: 70% tập phát triển, gồm 206 bệnh nhân.
+- S — lựa chọn: 15% tập phát triển, gồm 44 bệnh nhân.
+- C — xác nhận: 15% tập phát triển, gồm 44 bệnh nhân.
+
+Lần chia được tạo ngày 2026-11-11. Có một bệnh nhân bị loại; danh sách và lý do được ghi trong `benh_nhan_bi_loai.csv`. Mã bệnh nhân và tập được gán được ghi trong `phan_chia_benh_nhan.csv`.
+
+Dùng R để huấn luyện mô hình và khớp tham số. Dùng S để lựa chọn phương pháp xử lý ảnh, cấu hình, siêu tham số và ngưỡng. Dùng C để xác nhận ứng viên đã chọn; không lựa chọn lại cấu hình dựa trên kết quả C.
+
+Danh sách test được giữ cố định. Không dùng test để lựa chọn tiền xử lý, ngưỡng hoặc mô hình; chỉ dùng test cho đánh giá cuối cùng. Không thay đổi danh sách test sau khi xem số lát dương/âm, vị trí khối u hoặc kết quả mô hình.
+
+Có thể thống kê số lát dương và âm sau khi chia để mô tả dữ liệu. Nếu phân bố không cân bằng, ghi nhận tình trạng đó; không chuyển bệnh nhân giữa các tập để điều chỉnh phân bố.

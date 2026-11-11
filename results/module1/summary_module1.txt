@@ -1,0 +1,5 @@
+Ca hợp lệ sau chuẩn hóa RAS: 368
+Ca thiếu/trùng theo QA: 1
+Ca phải căn chỉnh segmentation: 0
+Lát WT dương: 24354
+Lát WT âm: 32686

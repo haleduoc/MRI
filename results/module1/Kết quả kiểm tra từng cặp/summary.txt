@@ -1,0 +1,16 @@
+Tổng số patient ID: 369
+Cặp hợp lệ: 368
+Ca thiếu hoặc trùng file: 1
+Lỗi đọc NIfTI: 0
+Lỗi manifest hoặc đầu vào: 0
+Giá trị dữ liệu không hợp lệ: 0
+Ca có NaN hoặc Inf: 0
+Ca có nhãn segmentation không hợp lệ: 0
+Cặp khác lưới: 0
+Cần căn chỉnh: 0
+Đã resample: 0
+Gói NIfTI: nifti_outputs.zip
+
+Số ca theo trạng thái:
+- missing_file: 1
+- valid: 368

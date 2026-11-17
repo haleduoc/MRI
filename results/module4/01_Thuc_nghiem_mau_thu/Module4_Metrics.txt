@@ -1,0 +1,17 @@
+=== KẾT QUẢ THỰC NGHIỆM MODULE 4: PHÂN LOẠI LÁT BẰNG CNN 2D ===
+
+--- 1. BẢNG SO SÁNH HIỆU NĂNG TRÊN TẬP S & TẬP C (NHÁNH A vs B1 vs B2) ---
+                                            Nhánh                Tập đánh giá  Threshold (τ*)  Slice_AUC  Slice_F1  Slice_Precision  Slice_Recall  Patient_Macro_F1  Patient_Macro_Precision  Patient_Macro_Recall  Preproc (ms/lát)  Infer (ms/lát)
+             Nhánh A: Baseline (Min-Max + Resize) S (Selection - Chọn ngưỡng)            0.57     0.9008    0.8161           0.7489        0.8965            0.8015                   0.7425                0.9048             0.379          11.257
+             Nhánh A: Baseline (Min-Max + Resize) C (Confirmation - Xác nhận)            0.57     0.8748    0.8060           0.7543        0.8653            0.7980                   0.7529                0.8664             0.379          11.257
+        Nhánh B1: [P1,P99] + Bilateral + Crop ROI S (Selection - Chọn ngưỡng)            0.52     0.9363    0.8769           0.8725        0.8813            0.8525                   0.8880                0.8648             2.427          11.191
+        Nhánh B1: [P1,P99] + Bilateral + Crop ROI C (Confirmation - Xác nhận)            0.52     0.9488    0.8954           0.8835        0.9077            0.8879                   0.8910                0.9007             2.427          11.191
+Nhánh B2: [P1,P99] + Bilateral + CLAHE + Crop ROI S (Selection - Chọn ngưỡng)            0.67     0.9302    0.8705           0.8506        0.8914            0.8537                   0.8589                0.8815             2.973           9.629
+Nhánh B2: [P1,P99] + Bilateral + CLAHE + Crop ROI C (Confirmation - Xác nhận)            0.67     0.9371    0.8727           0.8652        0.8803            0.8628                   0.8715                0.8742             2.973           9.629
+
+--- 2. DỰ ĐOÁN CỦA CNN TRÊN 4 MẪU ĐIỂN HÌNH ---
+  Mẫu Patient (z)  Ground Truth Label  Xác suất p (Nhánh A)  Dự đoán Nhánh A (τ*=0.57)  Xác suất p (Nhánh B1)  Dự đoán Nhánh B1 (τ*=0.52)  Chênh lệch độ tự tin Δp (B - A)
+Mẫu 1  001 (z=78)                   1                0.9353                          1                 0.9963                           1                           0.0610
+Mẫu 2  002 (z=50)                   1                0.8920                          1                 0.9957                           1                           0.1036
+Mẫu 3  003 (z=85)                   1                0.8910                          1                 0.9746                           1                           0.0837
+Mẫu 4  005 (z=75)                   0                0.8867                          1                 0.9129                           1                           0.0262

@@ -1,4 +1,4 @@
-"""Chuẩn hóa cặp FLAIR–WT sang RAS+ và ghi nhận trục lát axial."""
+# kiểm tra cặp ảnh; chuẩn hóa RAS+; căn chỉnh WT; lưu báo cáo và overlay.
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from PIL import Image, ImageDraw
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUTPUT_DIR = REPOSITORY_ROOT / "results" / "module1" / "Kết quả chuẩn hóa RAS"
+DEFAULT_OUTPUT_DIR = REPOSITORY_ROOT / "results" / "module1" / "Kết_quả_chuẩn_hoá_RAS"
 REPORT_FIELDS = [
     "patient_id", "status", "reason", "flair_source", "wt_source",
     "flair_orientation_before", "wt_orientation_before", "flair_shape_before",
@@ -89,6 +89,7 @@ def affine_is_valid(affine: np.ndarray) -> bool:
 
 # Tạo một overlay PNG trên lát có nhiều voxel WT nhất để kiểm tra vị trí mask.
 def save_overlay(flair: np.ndarray, wt: np.ndarray, patient_id: str, output_path: Path) -> None:
+    # Chọn lát có WT lớn nhất; percentile 1–99 giảm ảnh hưởng ngoại lai khi hiển thị.
     mask_sums = np.count_nonzero(wt, axis=(0, 1))
     slice_index = int(np.argmax(mask_sums))
     flair_slice = np.rot90(flair[:, :, slice_index])
@@ -129,6 +130,7 @@ def process_patient(
     if len(flair_paths) == 1:
         report["flair_source"] = str((data_root / flair_paths[0]).resolve())
     report["wt_source"] = str((wt_mask_dir / f"{patient_id}_wt.nii.gz").resolve())
+    # Chỉ xử lý cặp duy nhất đã qua cả kiểm kê lẫn QA.
     if manifest_status != "valid" or len(flair_paths) != 1 or len(segmentation_paths) != 1:
         report["status"] = "not_eligible"
         report["reason"] = manifest_row.get("reason") or "Manifest không có đúng một FLAIR và segmentation."
@@ -187,6 +189,7 @@ def process_patient(
         report["reason"] = f"Lỗi kiểm tra dữ liệu: {type(error).__name__}: {error}"
         return report
 
+    # Affine mô tả tọa độ vật lý; cùng shape nhưng affine khác vẫn là lệch lưới.
     same_grid = flair_image.shape == wt_image.shape and np.allclose(
         flair_affine, wt_affine, atol=1e-5, rtol=0
     )
@@ -203,6 +206,7 @@ def process_patient(
             return report
 
     # Một phép đổi trục từ FLAIR được áp dụng nguyên vẹn lên cả WT đã cùng lưới.
+    # Áp cùng phép hoán vị/đảo trục cho hai mảng để giữ mask khớp voxel với FLAIR.
     source_orientation = nib.orientations.io_orientation(flair_affine)
     ras_orientation = nib.orientations.axcodes2ornt(("R", "A", "S"))
     transform = nib.orientations.ornt_transform(source_orientation, ras_orientation)
@@ -231,7 +235,9 @@ def process_patient(
     obliquity_degrees = np.degrees(nib.affines.obliquity(ras_affine))
     maximum_obliquity = float(np.max(obliquity_degrees))
     superior_direction = ras_affine[:3, :3] / np.linalg.norm(ras_affine[:3, :3], axis=0)
+    # Trục có thành phần hướng S lớn nhất là trục voxel gần axial nhất.
     axial_axis = int(np.argmax(np.abs(superior_direction[2, :])))
+    # Ngưỡng 5° chỉ ghi chú chất lượng trục; không xoay/resample thêm volume.
     if maximum_obliquity > 5.0:
         axial_note = f"Trục {axial_axis} gần +S nhất nhưng oblique {maximum_obliquity:.2f}°; lát không thuần axial."
     else:

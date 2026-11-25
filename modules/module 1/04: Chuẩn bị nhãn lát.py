@@ -1,4 +1,4 @@
-"""Chuẩn bị quy tắc nhãn lát từ mask WT theo volume; không tạo bảng lát."""
+# đọc trục axial; kiểm tra WT; gán nhãn lát 0/1; ghi quy tắc.
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ import numpy as np
 
 
 ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_WT_DIR = ROOT / "results/module1/Kết quả chuẩn hóa RAS/nifti"
-DEFAULT_ORIENTATION_REPORT = ROOT / "results/module1/Kết quả chuẩn hóa RAS/orientation_report.csv"
+DEFAULT_WT_DIR = ROOT / "results/module1/Kết_quả_chuẩn_hoá_RAS/nifti"
+DEFAULT_ORIENTATION_REPORT = ROOT / "results/module1/Kết_quả_chuẩn_hoá_RAS/orientation_report.csv"
 DEFAULT_OUTPUT = ROOT / "results/module1/quy_tac_nhan_lat.txt"
 
 
@@ -24,12 +24,15 @@ def labels_from_wt(mask: np.ndarray, axis: int) -> np.ndarray:
         raise ValueError("Trục lát phải là 0, 1 hoặc 2.")
     if not np.isin(mask, (0, 1)).all():
         raise ValueError("WT chỉ được chứa giá trị 0 và 1.")
+    # Giảm hai trục còn lại: lát dương nếu có ít nhất một voxel WT.
     reduce_axes = tuple(i for i in range(3) if i != axis)
     return np.any(mask > 0, axis=reduce_axes).astype(np.uint8)
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(
+        description="Chuẩn bị quy tắc nhãn lát từ mask WT theo volume; không tạo bảng lát."
+    )
     parser.add_argument("--wt-dir", type=Path, default=DEFAULT_WT_DIR)
     parser.add_argument("--orientation-report", type=Path, default=DEFAULT_ORIENTATION_REPORT)
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
@@ -37,6 +40,7 @@ def main() -> int:
 
     with args.orientation_report.open(newline="", encoding="utf-8-sig") as f:
         rows = list(csv.DictReader(f))
+    # Chỉ dùng ca valid; nhiều trục khác nhau khiến một quy tắc lát chung không an toàn.
     axes = {int(row["axial_voxel_axis"]) for row in rows if row.get("status") == "valid" and row.get("axial_voxel_axis", "").isdigit()}
     if len(axes) != 1:
         parser.error(f"Không xác định được một trục axial thống nhất trong {args.orientation_report}")

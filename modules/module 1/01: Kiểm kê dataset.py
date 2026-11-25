@@ -1,4 +1,4 @@
-# Kiểm kê tên file NIfTI BraTS2020 TrainingData
+# quét NIfTI; nhận diện ID và modality; lập manifest; báo cáo file lỗi.
 
 from __future__ import annotations
 
@@ -22,13 +22,14 @@ DEFAULT_DATA_ROOT = (
 PATIENT_ID_PATTERN = re.compile(
     r"(?<![A-Za-z0-9])BraTS20_Training_(\d{3})(?!\d)", re.IGNORECASE
 )
+# Token biên ngăn khớp nhầm ID nằm trong chuỗi dài hơn.
 FLAIR_PATTERN = re.compile(r"(?:^|[_-])flair(?:$|[_-])", re.IGNORECASE)
 SEGMENTATION_PATTERN = re.compile(r"(?:^|[_-])seg(?:$|[_-])", re.IGNORECASE)
 OTHER_MODALITY_PATTERN = re.compile(
     r"(?:^|[_-])(?:t1ce|t1|t2)(?:$|[_-])", re.IGNORECASE
 )
 
-# Đây là danh sách ID dự kiến để đối chiếu, không phải danh sách ca đã tìm thấy.
+# ID kỳ vọng dùng phát hiện ca thiếu; manifest vẫn bổ sung ID tìm thấy ngoài danh sách.
 EXPECTED_PATIENT_IDS = [
     f"BraTS20_Training_{number:03d}" for number in range(1, 370)
 ]
@@ -103,6 +104,7 @@ def classify_modality(file_name: str) -> str:
     has_flair = FLAIR_PATTERN.search(file_stem) is not None
     has_segmentation = SEGMENTATION_PATTERN.search(file_stem) is not None
 
+    # Tên có cả hai token không được gán tùy tiện vào một modality.
     if has_flair and has_segmentation:
         return "ambiguous"
     if has_flair:
@@ -130,7 +132,7 @@ def process_nifti_files(
         modality = classify_modality(file_path.name)
         seen_patient_ids.update(patient_ids)
 
-        # ID mâu thuẫn giữa tên file và thư mục khiến file không thuộc bệnh nhân nào.
+        # Khi tên file và thư mục trỏ hai ID khác nhau, giữ cả hai để truy lỗi.
         if len(patient_ids) > 1:
             reason = "conflicting_patient_ids"
             if modality == "unknown":
@@ -183,11 +185,12 @@ def process_nifti_files(
         )
 
 
-# Lập manifest cho ID dự kiến lẫn ID mới phát hiện, không tự điền đường dẫn.
+# Lập manifest cho ID dự kiến lẫn ID mới phát hiện
 def create_manifest(
     files_by_patient: dict[str, dict[str, list[str]]],
     seen_patient_ids: set[str],
 ) -> list[dict[str, str | int]]:
+    # Hợp hai nguồn để vừa ghi ca thiếu vừa không bỏ sót ID lạ trong dữ liệu.
     all_patient_ids = set(EXPECTED_PATIENT_IDS) | seen_patient_ids
     manifest = []
 
@@ -220,7 +223,7 @@ def create_manifest(
         else:
             status = "valid"
 
-        # Chỉ cặp có đúng một file mỗi loại mới được đánh dấu hợp lệ.
+        # Chỉ đúng một FLAIR và một segmentation mới tạo được cặp không mơ hồ.
         manifest.append(
             {
                 "patient_id": patient_id,

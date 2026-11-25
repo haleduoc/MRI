@@ -1,5 +1,8 @@
 numpy
+nibabel
 opencv-python
 scikit-image
 matplotlib
 pandas
+Pillow
+scipy

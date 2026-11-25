@@ -1,4 +1,4 @@
-"""Tổng hợp kiểm tra Module 1 và tạo overlay QC đại diện từ FLAIR–WT RAS."""
+# ghép QA và hướng ảnh; đếm lát WT; chọn lát đại diện; tạo overlay QC.
 from __future__ import annotations
 
 import csv
@@ -12,7 +12,7 @@ from PIL import Image, ImageDraw
 ROOT = Path(__file__).resolve().parents[2]
 RESULTS = ROOT / "results/module1"
 QA = RESULTS / "Kết quả kiểm tra từng cặp/chất_lượng.csv"
-ORIENTATION = RESULTS / "Kết quả chuẩn hóa RAS/orientation_report.csv"
+ORIENTATION = RESULTS / "Kết_quả_chuẩn_hoá_RAS/orientation_report.csv"
 OUT = RESULTS / "kiem_tra_bang_mat"
 
 
@@ -22,6 +22,7 @@ def read_csv(path: Path) -> list[dict[str, str]]:
 
 
 def overlay(flair_path: Path, wt_path: Path, patient: str, axis: int, index: int, title: str, dest: Path) -> None:
+    # Không vẽ overlay nếu shape hoặc affine khác, vì mask sẽ nằm sai vị trí.
     flair_img, wt_img = nib.load(str(flair_path)), nib.load(str(wt_path))
     if flair_img.shape != wt_img.shape or not np.allclose(flair_img.affine, wt_img.affine):
         raise ValueError(f"FLAIR/WT khác lưới: {patient}")
@@ -30,6 +31,7 @@ def overlay(flair_path: Path, wt_path: Path, patient: str, axis: int, index: int
     flair = np.rot90(flair)
     wt = np.rot90(wt)
     valid = flair[np.isfinite(flair) & (flair > 0)]
+    # Cắt cường độ theo percentile để làm rõ cấu trúc mà không đổi dữ liệu gốc.
     low, high = np.percentile(valid, [1, 99]) if valid.size else (0, 1)
     gray = np.zeros(flair.shape, dtype=np.uint8) if high <= low else np.clip((flair-low)*255/(high-low),0,255).astype(np.uint8)
     rgb = np.repeat(gray[..., None], 3, axis=2)
@@ -54,12 +56,14 @@ def main() -> None:
         axis = int(row["axial_voxel_axis"])
         wt_img = nib.load(str(wt_path))
         wt = np.asanyarray(wt_img.dataobj) > 0
+        # Đếm voxel WT theo lát; các lát không có voxel được xem là âm tính.
         slice_counts = np.count_nonzero(wt, axis=tuple(i for i in range(3) if i != axis))
         positive = np.flatnonzero(slice_counts)
         total = wt.shape[axis]
         patients.append((pid, len(positive), total-len(positive), total))
         if len(positive):
             local_min, local_max = int(positive[np.argmin(slice_counts[positive])]), int(np.argmax(slice_counts))
+            # Lưu lát có u nhỏ nhất/lớn nhất để kiểm tra biên mask bằng mắt.
             candidate_min = (int(slice_counts[local_min]), pid, row, axis, local_min)
             candidate_max = (int(slice_counts[local_max]), pid, row, axis, local_max)
             if smallest is None or candidate_min[0] < smallest[0]: smallest = candidate_min
@@ -69,6 +73,7 @@ def main() -> None:
             negative_indices = np.array([i for i in range(total) if i not in positive_set])
             flair_img = nib.load(str(row["flair_output"]))
             flair_data = np.asanyarray(flair_img.dataobj)
+            # Chọn lát WT âm nhưng còn tín hiệu FLAIR để QC lát âm dễ quan sát.
             visible_counts = np.count_nonzero(np.take(flair_data, negative_indices, axis=axis), axis=tuple(i for i in range(3) if i != axis))
             best = int(np.argmax(visible_counts))
             negative = (pid, row, axis, int(negative_indices[best]))

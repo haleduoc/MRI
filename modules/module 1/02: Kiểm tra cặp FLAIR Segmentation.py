@@ -1,4 +1,4 @@
-"""Kiểm tra cặp FLAIR-segmentation NIfTI từ patient_manifest.csv."""
+# đọc manifest; kiểm tra hình học và nhãn; căn lưới segmentation; xuất QA và WT.
 
 from __future__ import annotations
 
@@ -8,6 +8,7 @@ import json
 import re
 import shutil
 import sys
+from collections import Counter
 from pathlib import Path
 from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -23,7 +24,7 @@ except ImportError as error:
 
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-DEFAULT_OUTPUT_DIR = REPOSITORY_ROOT / "results" / "module1" / "nifti_validation"
+DEFAULT_OUTPUT_DIR = REPOSITORY_ROOT / "results" / "module1" / "Kết quả kiểm tra từng cặp"
 ALLOWED_SEGMENTATION_LABELS = {0, 1, 2, 4}
 REQUIRED_MANIFEST_COLUMNS = {
     "patient_id",
@@ -33,30 +34,11 @@ REQUIRED_MANIFEST_COLUMNS = {
     "reason",
 }
 
-FILE_REPORT_FIELDS = [
-    "read_success",
-    "ndim",
-    "shape",
-    "affine",
-    "affine_valid",
-    "voxel_spacing",
-    "orientation",
-    "qform",
-    "qform_code",
-    "sform",
-    "sform_code",
-    "has_nan",
-    "has_inf",
-    "minimum",
-    "maximum",
-    "nonzero_voxels",
-    "labels_are_integer",
-    "unexpected_labels",
-    "labels_valid",
-]
+FILE_REPORT_FIELDS = """read_success ndim shape affine affine_valid voxel_spacing orientation
+qform qform_code sform sform_code has_nan has_inf minimum maximum nonzero_voxels
+labels_are_integer unexpected_labels labels_valid""".split()
 
 
-# Đọc các tham số và đặt thư mục kết quả mặc định trong results/module1.
 def parse_arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Kiểm tra hình học và giá trị của các cặp NIfTI FLAIR-segmentation."
@@ -87,34 +69,25 @@ def parse_arguments() -> argparse.Namespace:
     return parser.parse_args()
 
 
-# Đọc manifest và gom các dòng theo patient ID để đầu ra chỉ có một dòng mỗi ID.
 def read_manifest(
     manifest_path: Path,
 ) -> tuple[dict[str, list[dict[str, str]]], list[str]]:
     rows_by_patient: dict[str, list[dict[str, str]]] = {}
     csv_errors: list[str] = []
-
     try:
         with manifest_path.open("r", newline="", encoding="utf-8-sig") as csv_file:
             reader = csv.DictReader(csv_file)
-            column_names = set(reader.fieldnames or [])
-            missing_columns = sorted(REQUIRED_MANIFEST_COLUMNS - column_names)
+            missing_columns = sorted(REQUIRED_MANIFEST_COLUMNS - set(reader.fieldnames or []))
             if missing_columns:
-                return {}, [
-                    "Manifest thiếu cột bắt buộc: " + ", ".join(missing_columns)
-                ]
-
+                return {}, ["Manifest thiếu cột bắt buộc: " + ", ".join(missing_columns)]
             for row_number, row in enumerate(reader, start=2):
                 patient_id = (row.get("patient_id") or "").strip()
                 if not patient_id:
-                    csv_errors.append(
-                        f"Dòng {row_number} trong manifest không có patient_id."
-                    )
+                    csv_errors.append(f"Dòng {row_number} trong manifest không có patient_id.")
                     continue
                 if None in row:
-                    row["_csv_error"] = (
-                        f"Dòng {row_number} có nhiều giá trị hơn số cột trong header."
-                    )
+                    # DictReader đưa phần dư vào khóa None; đánh dấu ca thay vì làm lệch cột.
+                    row["_csv_error"] = f"Dòng {row_number} có nhiều giá trị hơn số cột trong header."
                 rows_by_patient.setdefault(patient_id, []).append(row)
             if not rows_by_patient and not csv_errors:
                 csv_errors.append("Manifest không có patient ID nào để kiểm tra.")
@@ -124,24 +97,20 @@ def read_manifest(
     return rows_by_patient, csv_errors
 
 
-# Tách các đường dẫn được nối bằng dấu chấm phẩy trong manifest.
 def split_paths(value: str | None) -> list[str]:
-    if not value:
-        return []
-    return [path.strip() for path in value.split(";") if path.strip()]
+    return [path.strip() for path in (value or "").split(";") if path.strip()]
 
 
-# Ngăn đường dẫn trong CSV thoát khỏi thư mục dataset.
 def resolve_dataset_path(data_root: Path, relative_path: str) -> tuple[Path | None, str]:
     try:
         candidate = (data_root / relative_path).resolve()
+        # CSV chỉ được mở trong data-root; resolve xử lý cả ../ và symlink.
         candidate.relative_to(data_root)
         exists_as_file = candidate.is_file()
     except (OSError, RuntimeError, ValueError) as error:
         if isinstance(error, (OSError, RuntimeError)):
             return None, f"Không phân giải được đường dẫn {relative_path}: {error}"
         return None, f"Đường dẫn nằm ngoài data-root: {relative_path}"
-
     if not exists_as_file:
         return None, f"Không tìm thấy file: {relative_path}"
     if not candidate.name.casefold().endswith((".nii", ".nii.gz")):
@@ -149,7 +118,6 @@ def resolve_dataset_path(data_root: Path, relative_path: str) -> tuple[Path | No
     return candidate, ""
 
 
-# Kiểm tra ma trận affine có hữu hạn và không làm suy biến lưới không gian.
 def is_valid_affine(affine: np.ndarray) -> bool:
     if affine.shape != (4, 4) or not np.isfinite(affine).all():
         return False
@@ -160,7 +128,6 @@ def is_valid_affine(affine: np.ndarray) -> bool:
     return abs(determinant) > 1e-12
 
 
-# Chuyển ma trận và danh sách số thành chuỗi JSON để ghi vào một ô CSV.
 def to_json(value: Any) -> str:
     if isinstance(value, np.ndarray):
         value = value.tolist()
@@ -172,21 +139,18 @@ def to_json(value: Any) -> str:
     )
 
 
-# Lấy thông tin hình học và dữ liệu voxel của một file, đồng thời giữ lỗi cụ thể.
 def inspect_nifti(
     file_path: Path, modality: str
 ) -> tuple[Any | None, np.ndarray | None, dict[str, str], list[str]]:
     image_info = {field: "" for field in FILE_REPORT_FIELDS}
     image_info["read_success"] = "no"
-    errors: list[str] = []
-
     try:
         image = nib.load(str(file_path))
         data = np.asanyarray(image.dataobj)
     except Exception as error:
-        errors.append(f"{modality} read error: {type(error).__name__}: {error}")
-        return None, None, image_info, errors
+        return None, None, image_info, [f"{modality} read error: {type(error).__name__}: {error}"]
 
+    errors: list[str] = []
     image_info["read_success"] = "yes"
     image_info["ndim"] = str(data.ndim)
     image_info["shape"] = to_json(list(data.shape))
@@ -204,29 +168,22 @@ def inspect_nifti(
     else:
         errors.append(f"{modality} affine không hợp lệ.")
 
-    try:
-        qform, qform_code = image.get_qform(coded=True)
-        if qform is not None:
-            image_info["qform"] = to_json(qform)
-        image_info["qform_code"] = str(int(qform_code or 0))
-    except Exception as error:
-        errors.append(f"{modality} qform error: {error}")
-    try:
-        sform, sform_code = image.get_sform(coded=True)
-        if sform is not None:
-            image_info["sform"] = to_json(sform)
-        image_info["sform_code"] = str(int(sform_code or 0))
-    except Exception as error:
-        errors.append(f"{modality} sform error: {error}")
+    # Lưu cả hai transform NIfTI để QA có thể phát hiện metadata bất nhất.
+    for form in ("qform", "sform"):
+        try:
+            matrix, code = getattr(image, f"get_{form}")(coded=True)
+            if matrix is not None:
+                image_info[form] = to_json(matrix)
+            image_info[f"{form}_code"] = str(int(code or 0))
+        except Exception as error:
+            errors.append(f"{modality} {form} error: {error}")
 
     if not np.issubdtype(data.dtype, np.number):
         image_info["has_nan"] = "unknown"
         image_info["has_inf"] = "unknown"
         errors.append(f"{modality} không chứa dữ liệu số.")
         if modality == "segmentation":
-            image_info["labels_are_integer"] = "no"
-            image_info["unexpected_labels"] = "[]"
-            image_info["labels_valid"] = "no"
+            image_info.update(labels_are_integer="no", unexpected_labels="[]", labels_valid="no")
         return image, data, image_info, errors
 
     has_nan = bool(np.isnan(data).any())
@@ -242,36 +199,29 @@ def inspect_nifti(
         errors.append(f"{modality} chứa dữ liệu phức, cần dữ liệu số thực.")
         image_info["nonzero_voxels"] = str(int(np.count_nonzero(data)))
         if modality == "segmentation":
-            image_info["labels_are_integer"] = "no"
-            image_info["unexpected_labels"] = "[]"
-            image_info["labels_valid"] = "no"
+            image_info.update(labels_are_integer="no", unexpected_labels="[]", labels_valid="no")
         return image, data, image_info, errors
 
     finite_values = data[np.isfinite(data)]
     if finite_values.size:
-        image_info["minimum"] = str(np.min(finite_values).item())
-        image_info["maximum"] = str(np.max(finite_values).item())
+        image_info["minimum"], image_info["maximum"] = (
+            str(np.min(finite_values).item()), str(np.max(finite_values).item())
+        )
     image_info["nonzero_voxels"] = str(int(np.count_nonzero(data)))
 
     if modality == "segmentation":
+        # Mask BraTS cho phép nhãn nguyên 0/1/2/4; bỏ qua giá trị không hữu hạn ở thống kê.
         finite_labels = np.unique(finite_values)
         labels_are_integer = bool(
             np.equal(finite_labels, np.rint(finite_labels)).all()
         )
-        unexpected_labels = []
-        for label in finite_labels:
-            if label not in ALLOWED_SEGMENTATION_LABELS:
-                unexpected_labels.append(float(label))
-
-        labels_valid = (
-            labels_are_integer
-            and not unexpected_labels
-            and not has_nan
-            and not has_inf
+        unexpected_labels = [float(label) for label in finite_labels if label not in ALLOWED_SEGMENTATION_LABELS]
+        labels_valid = labels_are_integer and not unexpected_labels and not has_nan and not has_inf
+        image_info.update(
+            labels_are_integer="yes" if labels_are_integer else "no",
+            unexpected_labels=to_json(unexpected_labels),
+            labels_valid="yes" if labels_valid else "no",
         )
-        image_info["labels_are_integer"] = "yes" if labels_are_integer else "no"
-        image_info["unexpected_labels"] = to_json(unexpected_labels)
-        image_info["labels_valid"] = "yes" if labels_valid else "no"
         if not labels_are_integer:
             errors.append("Segmentation chứa nhãn không nguyên.")
         if unexpected_labels:
@@ -283,24 +233,15 @@ def inspect_nifti(
     return image, data, image_info, errors
 
 
-# Tạo một dòng CSV với đủ cột, kể cả khi một ca lỗi trước lúc đọc ảnh.
 def new_report_row(patient_id: str) -> dict[str, str]:
     row = {
         "patient_id": patient_id,
-        "status": "",
-        "reason": "",
-        "manifest_status": "",
-        "manifest_reason": "",
-        "flair_path": "",
-        "segmentation_path": "",
-        "same_grid": "",
-        "resampled_segmentation_path": "",
-        "resampling_interpolation": "",
-        "target_shape": "",
-        "target_affine": "",
-        "resampled_segmentation_labels_valid": "",
-        "wt_mask_path": "",
-        "errors": "",
+        **dict.fromkeys((
+            "status", "reason", "manifest_status", "manifest_reason", "flair_path",
+            "segmentation_path", "same_grid", "resampled_segmentation_path",
+            "resampling_interpolation", "target_shape", "target_affine",
+            "resampled_segmentation_labels_valid", "wt_mask_path", "errors",
+        ), ""),
     }
     for modality in ("flair", "segmentation"):
         for field in FILE_REPORT_FIELDS:
@@ -308,14 +249,12 @@ def new_report_row(patient_id: str) -> dict[str, str]:
     return row
 
 
-# Ghi chú lỗi theo bệnh nhân thay vì dừng toàn bộ lần kiểm tra.
 def add_error(row: dict[str, str], errors: list[str], message: str) -> None:
     errors.append(message)
     row["errors"] = "; ".join(errors)
     row["reason"] = row["errors"]
 
 
-# So sánh cả shape lẫn affine để xác định hai ảnh có cùng lưới hay không.
 def images_share_grid(flair_image: Any, segmentation_image: Any) -> bool:
     same_shape = tuple(flair_image.shape) == tuple(segmentation_image.shape)
     same_affine = np.allclose(
@@ -327,7 +266,6 @@ def images_share_grid(flair_image: Any, segmentation_image: Any) -> bool:
     return same_shape and same_affine
 
 
-# Kiểm tra segmentation chỉ chứa nhãn nguyên trong tập {0, 1, 2, 4}.
 def segmentation_label_errors(data: np.ndarray) -> list[str]:
     if not np.issubdtype(data.dtype, np.number) or np.iscomplexobj(data):
         return ["Segmentation không phải dữ liệu số thực."]
@@ -348,7 +286,6 @@ def segmentation_label_errors(data: np.ndarray) -> list[str]:
     return errors
 
 
-# Resample segmentation bằng nearest-neighbor về đúng shape và affine của FLAIR.
 def resample_segmentation(
     segmentation_image: Any, flair_image: Any, output_path: Path
 ) -> tuple[Any, np.ndarray]:
@@ -357,6 +294,7 @@ def resample_segmentation(
 
     from nibabel.processing import resample_from_to
 
+    # Nearest-neighbor giữ nguyên nhãn rời rạc, không tạo giá trị mask trung gian.
     aligned_image = resample_from_to(
         segmentation_image,
         (flair_image.shape, flair_image.affine),
@@ -368,10 +306,10 @@ def resample_segmentation(
     return aligned_image, aligned_data
 
 
-# Tạo mask WT uint8 trên cùng lưới với FLAIR, không thay đổi segmentation gốc.
 def save_wt_mask(
     segmentation_data: np.ndarray, flair_image: Any, output_path: Path
 ) -> None:
+    # WT gộp ba vùng BraTS; nền 0 bị loại khỏi mask.
     wt_mask = np.isin(segmentation_data, [1, 2, 4]).astype(np.uint8)
     mask_header = flair_image.header.copy()
     mask_header.set_data_dtype(np.uint8)
@@ -380,40 +318,26 @@ def save_wt_mask(
     nib.save(mask_image, str(output_path))
 
 
-# Đóng các NIfTI phát sinh trong lần chạy thành một file ZIP duy nhất.
 def package_nifti_outputs(output_dir: Path) -> Path | None:
-    nifti_directories = [
-        output_dir / "wt_masks",
-        output_dir / "aligned_segmentations",
+    folders = [output_dir / name for name in ("wt_masks", "aligned_segmentations")]
+    nifti_files = [
+        path for folder in folders for path in folder.rglob("*")
+        if folder.is_dir() and path.is_file() and path.name.casefold().endswith((".nii", ".nii.gz"))
     ]
-    nifti_files = []
-    for directory in nifti_directories:
-        if not directory.is_dir():
-            continue
-        for file_path in directory.rglob("*"):
-            if file_path.is_file() and file_path.name.casefold().endswith(
-                (".nii", ".nii.gz")
-            ):
-                nifti_files.append(file_path)
-
     archive_path = output_dir / "nifti_outputs.zip"
     if not nifti_files:
         if archive_path.exists():
             archive_path.unlink()
         return None
-
+    # Xóa file trung gian chỉ sau khi ZIP đóng thành công, tránh mất đầu ra khi nén lỗi.
     with ZipFile(archive_path, "w", compression=ZIP_DEFLATED) as archive:
         for file_path in sorted(nifti_files):
             archive.write(file_path, arcname=file_path.relative_to(output_dir))
-
-    # Chỉ xóa các thư mục NIfTI sau khi file ZIP đã được ghi thành công.
-    for directory in nifti_directories:
-        if directory.exists():
-            shutil.rmtree(directory)
+    for folder in folders:
+        if folder.exists(): shutil.rmtree(folder)
     return archive_path
 
 
-# Ghi đường dẫn mask/alignment theo dạng tên ZIP và đường dẫn bên trong ZIP.
 def update_report_archive_paths(
     report_rows: list[dict[str, str]], archive_path: Path | None
 ) -> None:
@@ -425,7 +349,6 @@ def update_report_archive_paths(
                 row[field] = f"{archive_path.name}::{row[field]}"
 
 
-# Kiểm tra một bệnh nhân từ đường dẫn trong manifest đến mask WT.
 def validate_patient(
     patient_id: str,
     manifest_row: dict[str, str],
@@ -449,6 +372,7 @@ def validate_patient(
 
     has_duplicates = len(flair_paths) > 1 or len(segmentation_paths) > 1
     has_missing_paths = not flair_paths or not segmentation_paths
+    # Dừng trước khi mở ảnh vì cặp thiếu/trùng chưa xác định được đường dẫn duy nhất.
     if has_duplicates or has_missing_paths:
         if not flair_paths:
             add_error(report_row, errors, "Thiếu đường dẫn FLAIR trong manifest.")
@@ -505,6 +429,7 @@ def validate_patient(
         report_row["status"] = "invalid_affine"
         return report_row
 
+    # Tách lỗi số liệu khỏi lỗi nhãn để trạng thái báo cáo giữ đúng nguyên nhân.
     has_invalid_values = (
         flair_info["has_nan"] == "yes"
         or flair_info["has_inf"] == "yes"
@@ -528,7 +453,6 @@ def validate_patient(
 
     same_grid = images_share_grid(flair_image, segmentation_image)
     report_row["same_grid"] = "yes" if same_grid else "no"
-    aligned_segmentation = segmentation_image
     aligned_data = segmentation_data
     was_resampled = False
     aligned_label_errors: list[str] = []
@@ -542,9 +466,7 @@ def validate_patient(
 
         aligned_path = output_dir / "aligned_segmentations" / f"{safe_patient_id}_seg.nii.gz"
         try:
-            aligned_segmentation, aligned_data = resample_segmentation(
-                segmentation_image, flair_image, aligned_path
-            )
+            _, aligned_data = resample_segmentation(segmentation_image, flair_image, aligned_path)
         except Exception as error:
             add_error(report_row, errors, f"Không resample được segmentation: {error}")
             report_row["status"] = "requires_alignment"
@@ -558,6 +480,7 @@ def validate_patient(
         report_row["target_shape"] = to_json(list(flair_image.shape))
         report_row["target_affine"] = to_json(np.asarray(flair_image.affine))
 
+        # Resample có thể làm phát sinh nhãn mới; kiểm tra lại trước khi dựng WT.
         aligned_label_errors = segmentation_label_errors(aligned_data)
         report_row["resampled_segmentation_labels_valid"] = (
             "no" if aligned_label_errors else "yes"
@@ -585,36 +508,19 @@ def validate_patient(
     return report_row
 
 
-# Tạo các tên cột chi tiết cho metadata của cả FLAIR và segmentation.
 def get_report_columns() -> list[str]:
-    columns = [
-        "patient_id",
-        "status",
-        "reason",
-        "manifest_status",
-        "manifest_reason",
-        "flair_path",
-        "segmentation_path",
+    base = """patient_id status reason manifest_status manifest_reason
+    flair_path segmentation_path""".split()
+    image_fields = [
+        f"{modality}_{field}"
+        for modality in ("flair", "segmentation")
+        for field in FILE_REPORT_FIELDS
     ]
-    for modality in ("flair", "segmentation"):
-        for field in FILE_REPORT_FIELDS:
-            columns.append(f"{modality}_{field}")
-    columns.extend(
-        [
-            "same_grid",
-            "resampled_segmentation_path",
-            "resampling_interpolation",
-            "target_shape",
-            "target_affine",
-            "resampled_segmentation_labels_valid",
-            "wt_mask_path",
-            "errors",
-        ]
-    )
-    return columns
+    results = """same_grid resampled_segmentation_path resampling_interpolation
+    target_shape target_affine resampled_segmentation_labels_valid wt_mask_path errors""".split()
+    return base + image_fields + results
 
 
-# Tạo một dòng báo cáo cho lỗi manifest không gắn được với patient ID cụ thể.
 def manifest_error_row(message: str) -> dict[str, str]:
     row = new_report_row("__manifest__")
     row["status"] = "manifest_error"
@@ -623,7 +529,6 @@ def manifest_error_row(message: str) -> dict[str, str]:
     return row
 
 
-# Ghi số ca và các nhóm lỗi để người dùng đọc nhanh mà không mở CSV.
 def write_summary(
     output_path: Path,
     report_rows: list[dict[str, str]],
@@ -631,73 +536,46 @@ def write_summary(
     nifti_archive: Path | None,
 ) -> None:
     total_patients = sum(1 for row in report_rows if row["patient_id"] != "__manifest__")
-    status_counts: dict[str, int] = {}
+    status_counts = Counter(row["status"] for row in report_rows)
     counts = {
-        "valid_pairs": 0,
-        "missing_or_duplicate": 0,
-        "read_errors": 0,
+        # Một ca resampled vẫn là cặp dùng được; các nhóm lỗi bên dưới có thể chồng lấp.
+        "valid_pairs": sum(row["status"] in {"valid", "resampled"} for row in report_rows),
+        "missing_or_duplicate": sum(row["status"] in {"missing_file", "duplicate_file"} for row in report_rows),
+        "read_errors": status_counts["read_error"],
+        "csv_errors": status_counts["csv_error"],
         "invalid_values": 0,
         "nan_or_inf": 0,
-        "invalid_labels": 0,
-        "different_grids": 0,
-        "requires_alignment": 0,
-        "resampled": 0,
-        "csv_errors": 0,
-    }
-
-    for row in report_rows:
-        status = row["status"]
-        status_counts[status] = status_counts.get(status, 0) + 1
-        if status in {"valid", "resampled"}:
-            counts["valid_pairs"] += 1
-        if status in {"missing_file", "duplicate_file"}:
-            counts["missing_or_duplicate"] += 1
-        if status == "read_error":
-            counts["read_errors"] += 1
-        if status == "csv_error":
-            counts["csv_errors"] += 1
-        if status == "invalid_values" or any(
-            row[f"{modality}_has_nan"] == "yes"
-            or row[f"{modality}_has_inf"] == "yes"
-            for modality in ("flair", "segmentation")
-        ):
-            counts["invalid_values"] += 1
-        if (
+        "invalid_labels": sum(
             row["segmentation_labels_valid"] == "no"
             or row["resampled_segmentation_labels_valid"] == "no"
-        ):
-            counts["invalid_labels"] += 1
-        if status == "requires_alignment":
-            counts["requires_alignment"] += 1
-        if row["resampling_interpolation"]:
-            counts["resampled"] += 1
-        if row["same_grid"] == "no":
-            counts["different_grids"] += 1
-        if any(
-            row[f"{modality}_has_nan"] == "yes"
-            or row[f"{modality}_has_inf"] == "yes"
+            for row in report_rows
+        ),
+        "different_grids": sum(row["same_grid"] == "no" for row in report_rows),
+        "requires_alignment": status_counts["requires_alignment"],
+        "resampled": sum(bool(row["resampling_interpolation"]) for row in report_rows),
+    }
+    for row in report_rows:
+        invalid = any(
+            row[f"{modality}_has_nan"] == "yes" or row[f"{modality}_has_inf"] == "yes"
             for modality in ("flair", "segmentation")
-        ):
-            counts["nan_or_inf"] += 1
+        )
+        counts["nan_or_inf"] += invalid
+        counts["invalid_values"] += row["status"] == "invalid_values" or invalid
 
     with output_path.open("w", encoding="utf-8") as summary_file:
-        summary_file.write(f"Tổng số patient ID: {total_patients}\n")
-        summary_file.write(f"Cặp hợp lệ: {counts['valid_pairs']}\n")
-        summary_file.write(f"Ca thiếu hoặc trùng file: {counts['missing_or_duplicate']}\n")
-        summary_file.write(f"Lỗi đọc NIfTI: {counts['read_errors']}\n")
         summary_file.write(
+            f"Tổng số patient ID: {total_patients}\n"
+            f"Cặp hợp lệ: {counts['valid_pairs']}\n"
+            f"Ca thiếu hoặc trùng file: {counts['missing_or_duplicate']}\n"
+            f"Lỗi đọc NIfTI: {counts['read_errors']}\n"
             f"Lỗi manifest hoặc đầu vào: {counts['csv_errors'] + len(manifest_errors)}\n"
-        )
-        summary_file.write(f"Giá trị dữ liệu không hợp lệ: {counts['invalid_values']}\n")
-        summary_file.write(f"Ca có NaN hoặc Inf: {counts['nan_or_inf']}\n")
-        summary_file.write(f"Ca có nhãn segmentation không hợp lệ: {counts['invalid_labels']}\n")
-        summary_file.write(f"Cặp khác lưới: {counts['different_grids']}\n")
-        summary_file.write(f"Cần căn chỉnh: {counts['requires_alignment']}\n")
-        summary_file.write(f"Đã resample: {counts['resampled']}\n")
-        summary_file.write(
-            "Gói NIfTI: "
-            + (nifti_archive.name if nifti_archive is not None else "không có")
-            + "\n"
+            f"Giá trị dữ liệu không hợp lệ: {counts['invalid_values']}\n"
+            f"Ca có NaN hoặc Inf: {counts['nan_or_inf']}\n"
+            f"Ca có nhãn segmentation không hợp lệ: {counts['invalid_labels']}\n"
+            f"Cặp khác lưới: {counts['different_grids']}\n"
+            f"Cần căn chỉnh: {counts['requires_alignment']}\n"
+            f"Đã resample: {counts['resampled']}\n"
+            f"Gói NIfTI: {nifti_archive.name if nifti_archive is not None else 'không có'}\n"
         )
         summary_file.write("\nSố ca theo trạng thái:\n")
         for status in sorted(status_counts):
@@ -708,7 +586,6 @@ def write_summary(
                 summary_file.write(f"- {error}\n")
 
 
-# Điều phối đọc CSV, kiểm tra từng ca và ghi toàn bộ kết quả vào output-dir.
 def main() -> int:
     arguments = parse_arguments()
     manifest_path = arguments.manifest.expanduser().resolve()

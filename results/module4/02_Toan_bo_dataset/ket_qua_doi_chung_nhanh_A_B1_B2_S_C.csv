@@ -1,7 +1,0 @@
-Nhanh,Tap,Tau,Slice_AUC,Slice_F1,Slice_Precision,Slice_Recall,Patient_Macro_F1,Patient_Macro_Precision,Patient_Macro_Recall,Preproc_ms,Infer_ms
-Nhánh A: Baseline (Min-Max + Resize),S,0.57,0.9008,0.8161,0.7489,0.8965,0.8015,0.7425,0.9048,0.379,11.257
-Nhánh A: Baseline (Min-Max + Resize),C,0.57,0.8748,0.806,0.7543,0.8653,0.798,0.7529,0.8664,0.379,11.257
-"Nhánh B1: [P1,P99] + Bilateral + Crop ROI",S,0.52,0.9363,0.8769,0.8725,0.8813,0.8525,0.888,0.8648,2.427,11.191
-"Nhánh B1: [P1,P99] + Bilateral + Crop ROI",C,0.52,0.9488,0.8954,0.8835,0.9077,0.8879,0.891,0.9007,2.427,11.191
-"Nhánh B2: [P1,P99] + Bilateral + CLAHE + Crop ROI",S,0.67,0.9302,0.8705,0.8506,0.8914,0.8537,0.8589,0.8815,2.973,9.629
-"Nhánh B2: [P1,P99] + Bilateral + CLAHE + Crop ROI",C,0.67,0.9371,0.8727,0.8652,0.8803,0.8628,0.8715,0.8742,2.973,9.629

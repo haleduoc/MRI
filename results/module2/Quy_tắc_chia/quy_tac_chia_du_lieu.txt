@@ -1,7 +1,6 @@
-Quy tắc chia:
 Seed ngẫu nhiên: 42
 Bệnh nhân hợp lệ: 368; bị loại: 1
-Train/validation/test: 30/30/40 (110/111/147)
+Train/test/validation: 70/15/15 (258/55/55)
 Xáo trộn và chia ở cấp patient ID trước khi tạo lát 2D; mỗi bệnh nhân chỉ thuộc một tập.
 Không thay đổi danh sách test sau khi xem số lát dương/âm, vị trí u hoặc kết quả mô hình.
 Không dùng test để chọn tiền xử lý, ngưỡng hoặc mô hình; chỉ dùng cho đánh giá cuối cùng.

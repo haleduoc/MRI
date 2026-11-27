@@ -1,8 +1,7 @@
 KIỂM TRA VÀ KHÓA CÁC TẬP DỮ LIỆU
 
-Sau khi chia, cần kiểm tra để bảo đảm mỗi bệnh nhân chỉ thuộc một tập, không có mã bệnh nhân trùng giữa train, validation và test, và mọi bệnh nhân hợp lệ đều có trong danh sách. Danh sách chia theo từng bệnh nhân được lưu tại `results/module2/Quy_tắc_chia/phan_chia_benh_nhan.csv`.
+Sau khi chia, cần kiểm tra để bảo đảm mỗi bệnh nhân chỉ thuộc một tập, không có mã bệnh nhân trùng giữa train, test và validation, và mọi bệnh nhân hợp lệ đều có trong danh sách. Danh sách chia theo từng bệnh nhân được lưu tại `results/module2/Quy_tắc_chia/phan_chia_benh_nhan.csv`.
 
-Lần chia này dùng seed 42. Có 368 bệnh nhân hợp lệ và một bệnh nhân bị loại: 110 bệnh nhân thuộc tập train, 111 thuộc tập validation và 147 thuộc tập test (tỷ lệ lần lượt 30/30/40).
+Lần chia này dùng seed 42. Có 368 bệnh nhân hợp lệ và một bệnh nhân bị loại: 258 thuộc train, 55 thuộc test, 55 thuộc validation (tỷ lệ 70/15/15).
 
 Train dùng để huấn luyện; validation dùng để lựa chọn cấu hình. Không dùng test để lựa chọn tiền xử lý, ngưỡng hoặc mô hình; test chỉ dành cho đánh giá cuối cùng. Không điều chỉnh danh sách dựa trên số lát dương/âm, vị trí khối u hoặc kết quả mô hình.
-

@@ -67,10 +67,10 @@ def main() -> int:
             raise ValueError("Cần ít nhất 2 bệnh nhân hợp lệ để chia tập")
         # Chia trên patient ID trước khi sinh lát để ngăn rò rỉ lát giữa các tập.
         random.Random(SEED).shuffle(eligible)
-        n_test = round(len(eligible) * .40)
+        n_test = round(len(eligible) * .15)
         development = eligible[n_test:]
-        # Train chiếm 30% tổng số ca; validation nhận phần còn lại để đủ toàn bộ.
-        n_train = round(len(eligible) * .30)
+        # Train chiếm 70%; validation nhận phần còn lại sau khi làm tròn.
+        n_train = round(len(eligible) * .70)
         assignments = [(pid, "test") for pid, _ in eligible[:n_test]]
         assignments += [(pid, "train") for pid, _ in development[:n_train]]
         assignments += [(pid, "validation") for pid, _ in development[n_train:]]
@@ -88,7 +88,7 @@ def main() -> int:
             w = csv.writer(f); w.writerow(["patient_id", "reason"]); w.writerows(excluded)
         with (args.output_dir / "thong_ke_lat_theo_tap.csv").open("w", encoding="utf-8", newline="") as f:
             w = csv.writer(f); w.writerow(["tap", "so_benh_nhan", "lat_duong", "lat_am", "tong_lat"])
-            for split in ("train", "validation", "test"):
+            for split in ("train", "test", "validation"):
                 ids = [pid for pid, assigned in assignments if assigned == split]
                 counts = [slice_counts[pid] for pid in ids if pid in slice_counts]
                 w.writerow([split, len(ids), sum(int(r["positive_slices"]) for r in counts), sum(int(r["negative_slices"]) for r in counts), sum(int(r["total_slices"]) for r in counts)])
@@ -96,7 +96,7 @@ def main() -> int:
             f"QUY TẮC CHIA DỮ LIỆU THEO BỆNH NHÂN\nSeed ngẫu nhiên: {SEED}\n"
             f"Ngày tạo split: {date.today().isoformat()}\n"
             f"Bệnh nhân hợp lệ: {len(eligible)}; bị loại: {len(excluded)}\n"
-            f"Train/validation/test: 30/30/40 ({n_train}/{len(development)-n_train}/{n_test})\n"
+            f"Train/test/validation: 70/15/15 ({n_train}/{n_test}/{len(development)-n_train})\n"
             "Xáo trộn và chia ở cấp patient ID trước khi tạo lát 2D; mỗi bệnh nhân chỉ thuộc một tập.\n"
             "Không thay đổi danh sách test sau khi xem số lát dương/âm, vị trí u hoặc kết quả mô hình.\n"
             "Không dùng test để chọn tiền xử lý, ngưỡng hoặc mô hình; chỉ dùng cho đánh giá cuối cùng.\n"

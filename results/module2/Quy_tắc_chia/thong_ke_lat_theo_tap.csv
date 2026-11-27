@@ -1,4 +1,4 @@
 tap,so_benh_nhan,lat_duong,lat_am,tong_lat
-train,110,7199,9851,17050
-validation,111,7239,9966,17205
-test,147,9916,12869,22785
+train,258,16901,23089,39990
+test,55,3854,4671,8525
+validation,55,3599,4926,8525

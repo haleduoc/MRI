@@ -1,0 +1,47 @@
+{
+  "seed": 42,
+  "split_strategy": "3-split patient-level (70% train / 15% validation / 15% test)",
+  "fitted_roi_on_split": "train (258 patients)",
+  "min_brain_pixels_threshold": 500,
+  "margin_pixels": 4,
+  "roi": {
+    "xmin": 39,
+    "xmax": 204,
+    "ymin": 13,
+    "ymax": 215,
+    "crop_height": 165,
+    "crop_width": 202
+  },
+  "output_size": [
+    128,
+    128
+  ],
+  "total_slices_module2": 57040,
+  "removed_empty_slices_module3": 8215,
+  "remaining_valid_slices_module3": 48825,
+  "lost_positive_slices_check": 15,
+  "multi_filter_bank_for_cnn_augmentation": [
+    "F1: [P1, P99] + Crop ROI (No Denoise)",
+    "F2: [P1, P99] + Bilateral(d=5, sr=25, ss=3) + Crop ROI",
+    "F3: [P1, P99] + Bilateral(d=5, sr=25, ss=3) + CLAHE(clip=2.0, 8x8) + Crop ROI"
+  ],
+  "tight_roi": {
+    "xmin": 39,
+    "xmax": 204,
+    "ymin": 13,
+    "ymax": 215,
+    "crop_height": 165,
+    "crop_width": 202
+  },
+  "square_roi": {
+    "xmin": 20,
+    "xmax": 222,
+    "ymin": 13,
+    "ymax": 215,
+    "crop_height": 202,
+    "crop_width": 202,
+    "aspect_ratio_preserved": true,
+    "resize_scale_to_128": 0.633663,
+    "pixel_area_factor_to_original": 2.490479
+  }
+}

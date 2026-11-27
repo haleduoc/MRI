@@ -1,0 +1,10 @@
+=== TỔNG HỢP KẾT QUẢ MODULE 3 — FULL DATASET (3 TẬP TRAIN / VALIDATION / TEST) ===
+Thời gian chạy: 436.2 giây
+Khung ROI cố định (chỉ đo trên 258 ca train, lề m=4px): [39:204, 13:215] -> kích thước 165 x 202
+Kiểm tra lát có u bị loại nhầm (bắt buộc = 0): 15
+
+       tap  so_benh_nhan  tong_lat_M2  lat_rong_bi_loai  ty_le_loai_%  lat_hop_le_M3  lat_duong_WT1  ty_le_duong_%  lat_am_WT0  ty_le_am_%
+     train           258        39990              5740         14.35          34250          16889          49.31       17361       50.69
+validation            55         8525              1294         15.18           7231           3597          49.74        3634       50.26
+      test            55         8525              1181         13.85           7344           3853          52.46        3491       47.54
+     TOTAL           368        57040              8215         14.40          48825          24339          49.85       24486       50.15

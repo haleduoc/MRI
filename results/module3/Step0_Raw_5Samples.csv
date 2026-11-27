@@ -1,0 +1,6 @@
+Mẫu,Patient_ID,z,Split,Label,A_brain,WT_px,Trạng thái lọc,I_max,P1,P99,TB_Lành,TB_U
+Mẫu 1,BraTS20_Training_001,78,train,1,17424,4453,GIỮ LẠI,432.0,43.0,383.0,148.3,296.2
+Mẫu 2,BraTS20_Training_002,50,train,1,16379,2019,GIỮ LẠI,1091.0,101.0,720.2,312.1,555.2
+Mẫu 3,BraTS20_Training_003,85,train,1,15815,748,GIỮ LẠI,553.0,68.0,493.0,307.1,462.6
+Mẫu 4,BraTS20_Training_005,75,train,0,17154,0,GIỮ LẠI,670.0,35.0,304.5,152.6,0.0
+Mẫu 5,BraTS20_Training_001,2,train,0,0,0,LOẠI BỎ (Lát rỗng),0.0,0.0,0.0,0.0,0.0
